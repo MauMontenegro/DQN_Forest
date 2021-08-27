@@ -3,6 +3,7 @@ import numpy as np
 import torch as T
 import torch.nn as nn
 
+
 # Deep Q-Network Architecture
 class DQN_Vanilla(nn.Module):
     def __init__(self, num_inputs, num_outputs):
@@ -66,8 +67,14 @@ class Simple_Net(nn.Module):
             nn.Linear(128, self.num_outputs)
         )
 
+        # Initial Parameters
+        self.initial_parameters = self.state_dict()
+
     def forward(self, x):
         return self.layers(x)
+
+    def reset_parameters(self):
+        self.load_state_dict(self.initial_parameters)
 
     # def save_checkpoint():
     #    print("...Saving Checkpoint in ", self.checkpoint_file)
@@ -76,3 +83,44 @@ class Simple_Net(nn.Module):
     # def load_checkpoint():
     #    print("...Loading Checkpoint from ", self.checkpoint_file)
     #    self.load_state_dict(T.load(self.checkpoint_file))
+
+
+# Powers of Dueling Q Network
+class Dueling_Net(nn.Module):
+    def __init__(self, config):
+        super(Dueling_Net, self).__init__()
+
+        self.num_inputs = config.state_space_input
+        self.num_outputs = config.action_num
+
+        # Common NN Layers
+        self.feature = nn.Sequential(
+            nn.Linear(self.num_inputs, 128),
+            nn.ReLU()
+        )
+
+        # Advantage of each action Layers
+        self.advantage = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, self.num_outputs)  # Output for each action
+        )
+
+        # State-Value Layers
+        self.value = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)  # Only output a scalar
+        )
+
+        # Initial Parameters
+        self.initial_parameters = self.state_dict()
+
+    def forward(self, x):
+        x = self.feature(x)  # Common Layers
+        advantage = self.advantage(x)  # Advantage Stream
+        value = self.value(x)  # State-Value Stream
+        return value + advantage - advantage.mean()  # Aggregation
+
+    def reset_parameters(self):
+        self.load_state_dict(self.initial_parameters)

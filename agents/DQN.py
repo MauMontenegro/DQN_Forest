@@ -8,7 +8,8 @@ import importlib
 
 class DQN:
     def __init__(self, config):
-        Net = getattr(importlib.import_module("nets." + config.net), config.net)
+        # rnd.seed(config.seed)
+        Net = getattr(importlib.import_module("nets." + "Simple_Net"), config.net)
         self.current_model = Net(config)
         self.target_model = Net(config)
 
@@ -28,8 +29,13 @@ class DQN:
             action = rnd.randrange(self.action_space_num)
         return action
 
-    def train(self, config, buffer):
-        state, action, reward, next_state, done = buffer.sample(config.batch_size)
+    def train(self, config, buffer, beta):
+        if config.buffer_name == 'Prioritized_Buffer':
+            state, action, reward, next_state, done, indices, weights = buffer.sample(config.batch_size, beta)
+            indices = T.LongTensor(indices).to(self.device)
+            weights = T.FloatTensor(weights).to(self.device)
+        elif config.buffer_name == 'Simple_Buffer':
+            state, action, reward, next_state, done = buffer.sample(config.batch_size)
 
         state = T.FloatTensor(np.float32(state)).to(self.device)
         next_state = T.FloatTensor(np.float32(next_state)).to(self.device)
@@ -53,8 +59,14 @@ class DQN:
 
         expected_q_value = reward + config.gamma * next_q_value * (1 - done)
 
-        loss = (q_value - expected_q_value).pow(2).mean()
+        if config.buffer_name == 'Prioritized_Buffer':
+            loss = (q_value - expected_q_value).pow(2)*weights
+            priors = loss #prios for PER
+            buffer.update_priorities(indices.data.cpu().numpy(), priors.data.cpu().numpy())
+        elif config.buffer_name == 'Simple_Buffer':
+            loss = (q_value - expected_q_value).pow(2)
 
+        loss = loss.mean()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -62,5 +74,13 @@ class DQN:
         return loss
 
     def update_target(self):
-        print("Updating Parameters")
+        # print("Updating Parameters")
         self.target_model.load_state_dict(self.current_model.state_dict())
+
+    def reset_agent(self):
+        # Load Initial parameters
+        self.current_model.reset_parameters()
+        # Synchronize with Target Model
+        self.update_target()
+        # Initialize Optimizer with initial Parameters
+        self.optimizer = T.optim.Adam(self.current_model.parameters())
