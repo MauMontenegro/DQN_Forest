@@ -9,6 +9,7 @@ import importlib
 class DQN:
     def __init__(self, config):
         # rnd.seed(config.seed)
+        self.env_type = config.env_type
         Net = getattr(importlib.import_module("nets." + "Simple_Net"), config.net)
         self.current_model = Net(config)
         self.target_model = Net(config)
@@ -22,8 +23,13 @@ class DQN:
 
     def act(self, state, epsilon):
         if rnd.random() > epsilon:
-            with torch.no_grad():
-                q_value = self.current_model.forward(state.to(self.device))
+            if self.env_type == "Vector":
+                with torch.no_grad():
+                    q_value = self.current_model.forward(state.to(self.device))
+            elif self.env_type == "Atari":
+                state = state.unsqueeze(0)
+                with torch.no_grad():
+                    q_value = self.current_model.forward(state.to(self.device))
             action = T.argmax(q_value).item()
         else:
             action = rnd.randrange(self.action_space_num)

@@ -57,6 +57,10 @@ if __name__ == '__main__':
             # print("Playing Episode: {}".format(episodes))
             done = False
             state = env.reset()
+            state = utils.pre_processing_img(state, config.state_size_h, config.state_size_w, config.env_type)
+            # Stack 4 frames if Env is Atari
+            if config.env_type == "Atari":
+                state = np.stack((state, state, state, state))
             frame = 0
             loss = 0
             episode_reward = 0
@@ -68,7 +72,11 @@ if __name__ == '__main__':
                 interaction += 1
                 frame += 1
                 next_state, reward, done, _ = env.step(action)  # Step in environment
+                next_state = utils.pre_processing_img(next_state, config.state_size_h, config.state_size_w,
+                                                      config.env_type)
                 episode_reward += reward  # Accumulate reward
+                if config.env_type == "Atari":
+                    next_state = np.stack((next_state, state[0], state[1], state[2]))
                 buffer.push(state, action, reward, next_state, done)  # Store transition in Buffer
                 state = next_state
 

@@ -2,13 +2,19 @@ import gym
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 from matplotlib import animation
 
 
 def create_environment(config):
     env = gym.make(config.env_name)
     config.action_num = env.action_space.n
-    config.state_space_input = env.observation_space.shape[0]
+    if config.env_type == "Vector":
+        config.state_space_input = env.observation_space.shape[0]
+    elif config.env_type == "Atari":
+        config.state_size_h = env.observation_space.shape[0]  # Height
+        config.state_size_w = env.observation_space.shape[1]  # Width
+        config.state_size_c = env.observation_space.shape[2]  # Channels
 
     return env
 
@@ -51,6 +57,22 @@ def save_frames_as_gif(frames, path='Recordings/', filename='gym_animation.gif')
 
     anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=50)
     anim.save(path + filename, writer='imagemagick', fps=60)
+
+
+def pre_processing_img(image, h_img, w_img, env_type, crop_top_image=20):
+    if env_type == "Atari":
+        # To grayscale
+        frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # Cut 20 px from top
+        frame = frame[crop_top_image:h_img, 0:w_img]
+        # Resize
+        frame = cv2.resize(frame, (80, 64))
+        # Normalize
+        frame = frame.reshape(80, 64) / 255
+    elif env_type == "Vector":
+        frame = image
+
+    return frame
 
 
 if __name__ == '__main__':
