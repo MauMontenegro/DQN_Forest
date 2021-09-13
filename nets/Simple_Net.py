@@ -2,7 +2,7 @@
 import numpy as np
 import torch as T
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 
 # Deep Q-Network Architecture
@@ -150,7 +150,6 @@ class Simple_CNN(nn.Module):
 
         # Linear Action Output layer
         self.linear1 = nn.Linear(in_features=linear_input_size, out_features=128)
-        self.linear_relu = nn.LeakyReLU()  # Linear 1 activation function
         self.linear2 = nn.Linear(in_features=128, out_features=self.output)
 
         # Initial Parameters
@@ -159,20 +158,17 @@ class Simple_CNN(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
-        x = nn.ReLU(x)
-
-        # x = nn.ReLU(self.bn1(self.conv1(x)))
-        # x = nn.ReLU(self.bn2(self.conv2(x)))
+        x = F.relu(x)
 
         x = self.conv2(x)
         x = self.bn2(x)
-        x = nn.ReLU(x)
+        x = F.relu(x)
 
-        x = nn.ReLU(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
 
         x = x.view(x.size(0), -1)  # Flatten every batch
 
-        x = self.linear_relu(self.linear1(x))
+        x = F.leaky_relu(self.linear1(x))
         x = self.linear2(x)  # No activation on last layer
 
         return x
